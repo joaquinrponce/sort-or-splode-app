@@ -108,7 +108,8 @@ const Game = (function () {
       blowUpFrames: 600,
       width: width,
       height: width,
-      frameCount: 0
+      frameCount: 0,
+      grace: width / 10
     }
   }
 
@@ -342,10 +343,10 @@ const Game = (function () {
   }
 
   function checkIfDraggedBombIsDroppedAtCaptureZone ()  {
-    const isTopLeftInRed = isWithinBounds(redBoundsX, redBoundsY, draggedBomb.x, draggedBomb.y)
-    const isBottomRightInRed = isWithinBounds(redBoundsX, redBoundsY, draggedBomb.x + draggedBomb.width, draggedBomb.y + draggedBomb.height)
-    const isTopLeftInBlack = isWithinBounds(blackBoundsX, blackBoundsY, draggedBomb.x, draggedBomb.y)
-    const isBottomRightInBlack = isWithinBounds(blackBoundsX, blackBoundsY, draggedBomb.x + draggedBomb.width, draggedBomb.y + draggedBomb.height)
+    const isTopLeftInRed = isWithinBounds(redBoundsX, redBoundsY, draggedBomb.x + draggedBomb.grace, draggedBomb.y)
+    const isBottomRightInRed = isWithinBounds(redBoundsX, redBoundsY, draggedBomb.x + draggedBomb.width - draggedBomb.grace, draggedBomb.y + draggedBomb.height)
+    const isTopLeftInBlack = isWithinBounds(blackBoundsX, blackBoundsY, draggedBomb.x + draggedBomb.grace, draggedBomb.y)
+    const isBottomRightInBlack = isWithinBounds(blackBoundsX, blackBoundsY, draggedBomb.x + draggedBomb.width - draggedBomb.grace, draggedBomb.y + draggedBomb.height)
     if (isTopLeftInRed && isBottomRightInRed && draggedBomb.width == 80) {
       if (draggedBomb.color === 'red') {
         draggedBomb.canMove = false
