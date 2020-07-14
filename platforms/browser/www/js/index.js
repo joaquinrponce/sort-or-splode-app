@@ -39,6 +39,31 @@ const Game = (function () {
   ctx.imageSmoothingEnabled = false
   backgroundCtx.imageSmoothingEnabled = false
 
+  /* ensure bombs are always at least 5px apart, so they will be clearly visible when overlapped*/
+  const randomCoords = (function randomCoords () {
+    const values = [325, 330, 335, 340, 345, 350, 355, 360, 365, 370, 375, 380, 385, 390, 395, 400, 405, 410, 415, 420, 425, 430, 435, 440, 445, 450, 455, 460, 465, 470, 475]
+    let bag = JSON.parse(JSON.stringify(values))
+    function shuffle () {
+      bag.forEach((item, index) => {
+        let randomIndex = Math.floor(Math.random() * (bag.length - 1))
+        const t = bag[index]
+        bag[index] = bag[randomIndex]
+        bag[randomIndex] = t
+      })
+    }
+    /* a simple shuffle bag implementation. returns the first value, removes it from the array, restores it to original state when empty, then shuffles it for randomness*/
+    function next () {
+      const value = bag[0]
+      bag.shift()
+      if (bag.length === 0) {
+        bag = JSON.parse(JSON.stringify(values))
+      }
+      shuffle()
+      return bag[0]
+    }
+    return {next: next}
+  })()
+
 
   let framesBetweenSpawns = 250
   let canDrag = false
@@ -61,27 +86,19 @@ const Game = (function () {
   const blackBoundsX = [625, 800]
   const blackBoundsY = [163, 338]
 
-  function randomCoords (minHeight) {
-    const min = Math.ceil(325)
-    const max = Math.ceil(475)
-    const up = Math.random() > 0.5
-    const y = up ? minHeight : gameCanvas.height - minHeight
-    const x = Math.floor(Math.random() * (max - min + 1)) + min
-    return {x, y}
-  }
 
   function createBomb (color = Math.random() > 0.5 ? 'red' : 'black')  {
-    const decider = Math.random() > 0.5
-    const direction = decider ? Math.sign(-1) : Math.sign(1)
-    const offsetX = decider ? 2 : 1
-    const offsetY = decider ? 1 : 2
+    const direction = Math.random() > 0.5 ? Math.sign(-1) : Math.sign(1)
+    const offsetX = Math.random() > 0.5 ? 2 : 1
+    const offsetY = offsetX === 2 ? 1 : 2
     const width = 80
-    let coords = randomCoords(width)
+    let x = randomCoords.next()
+    let y = Math.random() > 0.5 ? 0 : mainCanvas.height - width
     return {
-      x: coords.x,
-      y: coords.y,
-      savedX: coords.x,
-      savedY: coords.y,
+      x: x,
+      y: y,
+      savedX: x,
+      savedY: y,
       offsetY: offsetY,
       offsetX: offsetX * direction,
       color: color,
@@ -118,7 +135,7 @@ const Game = (function () {
       resetGame()
       gamePaused = false
     }),
-    pause: menuButton('Pause', mainCanvas.width - 150, 0, () => {
+    pause: menuButton('Pause', mainCanvas.width - 80, 0, () => {
       gamePaused = true
     })
   }
@@ -206,7 +223,7 @@ const Game = (function () {
   }
 
   function addExtraBombs () {
-    if (bombs.length > 30) return
+    if (bombs.length > 70) return
     if (currentFrame % framesBetweenSpawns === 0) {
       for (let i = 1; i <= numberOfBombsPerSpawn; i++) {
         bombs.push(createBomb())
@@ -216,14 +233,15 @@ const Game = (function () {
         numberOfBombsPerSpawn++
       }
     }
+    usedSpawnCoords = []
   }
 
   function updateCapturedBombs() {
-    if (redCapturedBombs === 5) {
+    if (redCapturedBombs === 20) {
       bombs = bombs.filter(bomb => (bomb.canMove && bomb.color === 'red') || bomb.color === 'black')
       playerScore += redCapturedBombs
       redCapturedBombs = 0
-    } else if (blackCapturedBombs === 5) {
+    } else if (blackCapturedBombs === 20) {
       bombs = bombs.filter(bomb => (bomb.canMove && bomb.color === 'black') || bomb.color === 'red')
       playerScore += blackCapturedBombs
       blackCapturedBombs = 0
@@ -236,7 +254,7 @@ const Game = (function () {
       for (button in menuButtons) {
         if ((gameOver || gameStarted) && button === 'start') continue
         if ((!gameStarted || gameOver) && button === 'continue') continue
-        if (gamePaused && button === 'pause') continue
+        if (button === 'pause') continue
         button = menuButtons[button]
         menuCtx.fillStyle = 'black'
         menuCtx.fillRect(button.x, button.y, button.width, button.height)
