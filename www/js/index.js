@@ -234,8 +234,8 @@ const Game = (function () {
     menuCtx.clearRect(0, 0, menuCanvas.width, menuCanvas.height)
     if (gamePaused || gameOver) {
       for (button in menuButtons) {
-        if (gameOver || gameStarted && button === 'start') continue
-        if (!gameStarted && button === 'continue') continue
+        if ((gameOver || gameStarted) && button === 'start') continue
+        if ((!gameStarted || gameOver) && button === 'continue') continue
         if (gamePaused && button === 'pause') continue
         button = menuButtons[button]
         menuCtx.fillStyle = 'black'
