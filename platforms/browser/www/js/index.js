@@ -65,12 +65,12 @@ const Game = (function () {
   })()
 
 
-  let framesBetweenSpawns = 250
+  let secondsBetweenSpawns = 4
   let canDrag = false
   let draggedBomb = null
   let level = 1
   let numberOfBombsPerSpawn = 3
-  let currentFrame = 1
+  let currentSecond = 0
   let dragging = false
   let gameOver = false
   let redCapturedBombs = 0
@@ -80,6 +80,9 @@ const Game = (function () {
   let currentRequest = null
   let gamePaused = false
   let gameStarted = false
+
+  let secondsPassed = 0;
+  let oldTimeStamp = 0;
 
   const redBoundsX = [0, 175]
   const redBoundsY = [163, 338]
@@ -95,6 +98,7 @@ const Game = (function () {
     let x = randomCoords.next()
     let y = Math.random() > 0.5 ? 0 : mainCanvas.height - width
     return {
+      speed: 50,
       x: x,
       y: y,
       savedX: x,
@@ -104,11 +108,11 @@ const Game = (function () {
       color: color,
       isDragging: false,
       canMove: true,
-      elapsedFrames: 0,
-      blowUpFrames: 600,
+      elapsedSeconds: 0,
+      blowUpSeconds: 10,
       width: width,
       height: width,
-      frameCount: 0,
+      secondsCount: 0,
       grace: width / 10
     }
   }
@@ -142,12 +146,12 @@ const Game = (function () {
   }
 
   function resetGame () {
-    framesBetweenSpawns = 250
+    secondsBetweenSpawns = 4
     canDrag = false
     draggedBomb = null
     level = 1
     numberOfBombsPerSpawn = 3
-    currentFrame = 1
+    currentSecond = 0
     dragging = false
     gameOver = false
     redCapturedBombs = 0
@@ -209,12 +213,12 @@ const Game = (function () {
       if (willHitCaptureZones(bomb)) {
         collisionIsVertical(bomb) ? bomb.offsetY = -bomb.offsetY : bomb.offsetX = -bomb.offsetX
       }
-      bomb.x += bomb.offsetX
-      bomb.y += bomb.offsetY
+      bomb.x += Math.round((bomb.offsetX * bomb.speed * secondsPassed))
+      bomb.y += Math.round((bomb.offsetY * bomb.speed * secondsPassed))
     }
-    if (bomb.canMove) bomb.elapsedFrames += 1
-    if (bomb.frameCount >= 20)  bomb.frameCount = 0
-    bomb.frameCount++
+    if (bomb.canMove) bomb.elapsedSeconds += secondsPassed
+    if (bomb.secondsCount >= .5)  bomb.secondsCount = 0
+    bomb.secondsCount += secondsPassed
   }
 
   function updateBombs () {
@@ -225,11 +229,12 @@ const Game = (function () {
 
   function addExtraBombs () {
     if (bombs.length > 70) return
-    if (currentFrame % framesBetweenSpawns === 0) {
+    if (currentSecond > 1 && (Math.floor(currentSecond) % secondsBetweenSpawns === 0 )) {
       for (let i = 1; i <= numberOfBombsPerSpawn; i++) {
         bombs.push(createBomb())
       }
       level++
+      currentSecond = 0
       if (level % 5 === 0) {
         numberOfBombsPerSpawn++
       }
@@ -284,13 +289,13 @@ const Game = (function () {
 
   function drawBomb(bomb) {
     let bombSprite = bomb.color === 'red' ? images.redBomb : images.blackBomb
-    let column = bomb.frameCount < 10 ?  0 :  40
-    if (bomb.elapsedFrames === bomb.blowUpFrames) {
+    let column = bomb.secondsCount < .25 ?  0 :  40
+    if (bomb.elapsedSeconds >= bomb.blowUpSeconds) {
       ctx.drawImage(images.bombExplode, bomb.x, bomb.y)
       gameOver = true
       return
     }
-    if ((bomb.blowUpFrames - bomb.elapsedFrames) < 150 && bomb.elapsedFrames % 5 === 0 && bomb.canMove) {
+    if ((bomb.blowUpSeconds - bomb.elapsedSeconds) < 3 && Math.round(bomb.secondsCount * 10) % 2 === 0 && bomb.canMove) {
       bombSprite = images.blowBomb
     }
     ctx.drawImage(bombSprite, column, 0, 40, 40, bomb.x, bomb.y, bomb.width, bomb.height)
@@ -305,7 +310,10 @@ const Game = (function () {
     requestAnimationFrame(drawPlayerScore)
   }
 
-  function drawFrame () {
+  function drawFrame (timeStamp) {
+    secondsPassed = (timeStamp - oldTimeStamp) / 1000;
+    secondsPassed = Math.min(secondsPassed, 0.16)
+    oldTimeStamp = timeStamp;
     if (gameOver || gamePaused ) {
       currentRequest = requestAnimationFrame(drawFrame)
     } else {
@@ -314,7 +322,7 @@ const Game = (function () {
     updateBombs()
     drawBombs()
     addExtraBombs()
-    currentFrame++
+    currentSecond += secondsPassed
     currentRequest = requestAnimationFrame(drawFrame)
     }
   }
@@ -352,14 +360,14 @@ const Game = (function () {
         draggedBomb.canMove = false
         redCapturedBombs += 1
       } else {
-        draggedBomb.elapsedFrames = draggedBomb.blowUpFrames - 1
+        draggedBomb.elapsedSeconds = draggedBomb.blowUpSeconds
       }
     } else if (isTopLeftInBlack && isBottomRightInBlack && draggedBomb.width == 80) {
       if (draggedBomb.color === 'black') {
         draggedBomb.canMove = false
         blackCapturedBombs += 1
       } else {
-        draggedBomb.elapsedFrames = draggedBomb.blowUpFrames - 1
+        draggedBomb.elapsedSeconds = draggedBomb.blowUpSeconds
       }
     } else {
       draggedBomb.x = draggedBomb.savedX
