@@ -18,8 +18,8 @@ const Game = (function () {
   backgroundCanvas.height = 500
 
   const scoreCtx = scoreCanvas.getContext('2d')
-  scoreCanvas.width = 200
-  scoreCanvas.height = 80
+  scoreCanvas.width = 800
+  scoreCanvas.height = 500
 
   const menuCtx = menuCanvas.getContext('2d')
   menuCanvas.width = 800
@@ -40,9 +40,8 @@ const Game = (function () {
   }
 
   const sfx = {
-    music1: new Audio('sfx/music1.wav'),
+    music1: new Audio('sfx/music1.ogg'),
     music2: new Audio('sfx/music2.ogg'),
-    music3: new Audio('sfx/music3.ogg'),
     bombGrab : new Audio('sfx/bombGrab.mp3'),
     bombExplosion: new Audio('sfx/bombExplosion.mp3'),
     bombBeep: new Audio('sfx/bombBeep.mp3')
@@ -94,6 +93,8 @@ const Game = (function () {
   let gamePaused = false
   let gameStarted = false
   let currentMusic = 1
+  let showMenu = false
+  let scores = []
 
   let secondsPassed = 0;
   let oldTimeStamp = 0;
@@ -146,25 +147,31 @@ const Game = (function () {
 
   const menuButtons = {
     start: menuButton('Start', 325, 170, 150, 50, images.startButton, () => {
+      if (gameStarted) return
       sfx[`music${currentMusic}`].play()
       gameStarted = true
-      gamePaused = false
+      showMenu = false
     }),
     continue: menuButton('Continue', 325, 170, 150, 50, images.continueButton, () => {
+      if (gameOver) return
       sfx[`music${currentMusic}`].play()
       gamePaused = false
+      showMenu = false
     }),
     restart: menuButton('Restart', 325, 300, 150, 50, images.restartButton, () => {
+      if (!gameStarted) return
       sfx[`music${currentMusic}`].pause()
-      currentMusic === 3 ? currentMusic = 1 : currentMusic += 1
+      currentMusic === 2 ? currentMusic = 1 : currentMusic += 1
       sfx[`music${currentMusic}`].currentTime = 0
       sfx[`music${currentMusic}`].play()
       resetGame()
       gamePaused = false
+      showMenu = false
     }),
     pause: menuButton('Pause', mainCanvas.width - 50, 0, 50, 50, images.pauseButton, () => {
       sfx[`music${currentMusic}`].pause()
       gamePaused = true
+      showMenu = true
     })
   }
 
@@ -225,11 +232,23 @@ const Game = (function () {
   }
 
 
+  function endGame () {
+    gameOver = true
+    showMenu = true
+    sfx[`music${currentMusic}`].pause()
+    scores.push(playerScore)
+    scores.sort((a, b) => {
+      return b - a
+    })
+    scores = scores.slice(0, 5)
+    console.log(scores)
+    saveScores()
+  }
+
   function updateBomb (bomb) {
     if (bomb.isBlownUp) {
       sfx.bombExplosion.play()
-      gameOver = true
-      sfx[`music${currentMusic}`].pause()
+      endGame()
     }
     if (!bomb.isDragging && bomb.canMove) {
       if (willHitHorizontalWalls(bomb)) {
@@ -292,18 +311,17 @@ const Game = (function () {
 
   function drawMenu () {
     menuCtx.clearRect(0, 0, menuCanvas.width, menuCanvas.height)
-    if (gamePaused || gameOver) {
+    if (showMenu) {
       for (button in menuButtons) {
-        if ((gameOver || gameStarted) && button === 'start') continue
-        if (!gameStarted && button === 'restart') continue
-        if ((!gameStarted || gameOver) && button === 'continue') continue
-        if (button === 'pause') continue
+        if (button === 'start' && (gameStarted || gameOver)) continue
+        if (button === 'restart' && !gameStarted) continue
+        if (button === 'continue' && !gamePaused) continue
+        if (button == 'pause') continue
         button = menuButtons[button]
         menuCtx.drawImage(button.image, button.x, button.y)
       }
     } else {
-      const button = menuButtons.pause
-      menuCtx.drawImage(button.image, button.x, button.y)
+      menuCtx.drawImage(menuButtons.pause.image, menuButtons.pause.x, menuButtons.pause.y)
     }
     requestAnimationFrame(drawMenu)
   }
@@ -328,20 +346,46 @@ const Game = (function () {
     ctx.drawImage(bombSprite, column, 0, 40, 40, bomb.x, bomb.y, bomb.width, bomb.height)
   }
 
+  function drawHighScores (size) {
+    const x = 325
+    let y = size * 3 - 15
+    scoreCtx.fillStyle= 'white'
+    scoreCtx.fillText(`Highscores`, x, y)
+    y += size * 2
+    scores.forEach((score, index) => {
+      if (index >= 5) return
+      scoreCtx.fillStyle = 'white'
+      scoreCtx.fillText(`#${index + 1}:       ${score}`, x, y)
+      y += size
+    })
+  }
+
   function drawPlayerScore () {
-    const size = window.innerWidth * 0.03
-    scoreCtx.clearRect(0, 0, scoreCanvas.height, scoreCanvas.width)
+    scoreCtx.clearRect(0, 0, scoreCanvas.width, scoreCanvas.height)
+    const size = 34
     scoreCtx.fillStyle = 'white'
-    scoreCtx.font = `${size}px serif`
-    scoreCtx.fillText('Score: ' + playerScore, 0, size)
+    scoreCtx.font = `${size}px arial`
+    if (gameOver) {
+      scoreCtx.fillStyle = 'rgba(0, 0, 0, 0.5)'
+      scoreCtx.fillRect(0, 0, scoreCanvas.width, scoreCanvas.height)
+      drawHighScores(size)
+    } else {
+      const text = `Score: ${playerScore}`
+      scoreCtx.fillStyle = 'rgba(0, 0, 0, 0.5)'
+      const width = ctx.measureText(text).width
+      console.log(ctx.measuretext(text))
+      scoreCtx.fillRect(0, 0, width, size)
+      scoreCtx.fillStyle = 'white'
+      scoreCtx.fillText(text, 0, size)
+    }
     requestAnimationFrame(drawPlayerScore)
   }
 
-  function drawFrame (timeStamp) {
+  function drawFrame (timeStamp = 0) {
     secondsPassed = (timeStamp - oldTimeStamp) / 1000;
     secondsPassed = Math.min(secondsPassed, 0.16)
     oldTimeStamp = timeStamp;
-    if (gameOver || gamePaused ) {
+    if (gameOver || gamePaused || !gameStarted) {
       currentRequest = requestAnimationFrame(drawFrame)
     } else {
     ctx.clearRect(0, 0, gameCanvas.width, gameCanvas.height)
@@ -418,10 +462,11 @@ const Game = (function () {
     const canvasX = relativeX * mainCanvas.width / mainCanvas.clientWidth
     const canvasY = relativeY * mainCanvas.height / mainCanvas.clientHeight
     if (isWithinBounds([menuButtons.pause.x, menuButtons.pause.x + menuButtons.pause.width], [menuButtons.pause.y, menuButtons.pause.y + menuButtons.pause.height], canvasX, canvasY)) {
+      console.log('huh?')
       menuButtons.pause.activate()
       return
     }
-    if (gameOver || gamePaused) {
+    if (showMenu) {
       for (button in menuButtons) {
         button = menuButtons[button]
         const boundsX = [button.x, button.x + button.width]
@@ -518,11 +563,10 @@ const Game = (function () {
       menuCanvas.style.height = `${window.innerHeight}px`
       scoreCanvas.style.width = `${window.innerWidth}px`
       scoreCanvas.style.height = `${window.innerHeight}px`
-      scoreCanvas.width = window.innerWidth
-      scoreCanvas.height = window.innerHeight
       ctx.imageSmoothingEnabled = false
       backgroundCtx.imageSmoothingEnabled = false
       mainCtx.imageSmoothingEnabled = false
+      scoreCtx.imageSmoothingEnabled = false
   }
 
   window.addEventListener('resize', resize)
@@ -533,7 +577,8 @@ const Game = (function () {
     resetGame()
     resize()
     backgroundCtx.drawImage(images.background, 0, 0)
-    gamePaused = true
+    showMenu = true
+    gameStarted = false
     drawMenu()
     drawPlayerScore()
     drawFrame()
@@ -545,12 +590,17 @@ const Game = (function () {
     sfx.music1.volume = 0.25
     sfx.music2.loop = true
     sfx.music2.volume = 0.25
-    sfx.music3.loop = true
-    sfx.music3.volume = 0.25
     sfx.bombExplosion.volume = 0.5
     sfx.bombBeep.volume = 0.5
   }
 
+  function saveScores() {
+    window.localStorage.setItem('scores', JSON.stringify(scores))
+  }
+
+  function loadHighScores () {
+    scores = JSON.parse(window.localStorage.getItem('scores')) || []
+  }
 
   function load() {
     let imagesToLoad = 0
@@ -564,6 +614,7 @@ const Game = (function () {
       imagesLoaded++
       if (checkIfReady()) {
           setSFXProperties()
+          loadHighScores()
           start()
         }
       }
