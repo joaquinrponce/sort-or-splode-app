@@ -44,7 +44,8 @@ const Game = (function () {
     music2: new Audio('sfx/music2.ogg'),
     music3: new Audio('sfx/music3.ogg'),
     bombGrab : new Audio('sfx/bombGrab.mp3'),
-    bombExplosion: new Audio('sfx/bombExplosion.mp3')
+    bombExplosion: new Audio('sfx/bombExplosion.mp3'),
+    bombBeep: new Audio('sfx/bombBeep.mp3')
   }
 
   mainCanvas.imageSmoothingEnabled = false
@@ -77,7 +78,7 @@ const Game = (function () {
   })()
 
 
-  let secondsBetweenSpawns = 4
+  let secondsBetweenSpawns = 3
   let canDrag = false
   let draggedBomb = null
   let level = 1
@@ -261,17 +262,20 @@ const Game = (function () {
 
   function addExtraBombs () {
     if (bombs.length > 70) return
-    if (currentSecond > 1 && (Math.floor(currentSecond) % secondsBetweenSpawns === 0 )) {
-      for (let i = 1; i <= numberOfBombsPerSpawn; i++) {
+    if (currentSecond > secondsBetweenSpawns) {
+      for (let i = 0; i < numberOfBombsPerSpawn; i++) {
         bombs.push(createBomb())
       }
-      level++
       currentSecond = 0
+      level++
       if (level % 5 === 0) {
-        numberOfBombsPerSpawn++
+        if (secondsBetweenSpawns > 1) {
+          secondsBetweenSpawns -= .20
+        } else {
+          numberOfBombsPerSpawn++
+        }
       }
     }
-    usedSpawnCoords = []
   }
 
   function updateCapturedBombs() {
@@ -319,6 +323,7 @@ const Game = (function () {
     }
     if ((bomb.blowUpSeconds - bomb.elapsedSeconds) < 3 && Math.round(bomb.secondsCount * 10) % 2 === 0 && bomb.canMove) {
       bombSprite = images.blowBomb
+      sfx.bombBeep.play()
     }
     ctx.drawImage(bombSprite, column, 0, 40, 40, bomb.x, bomb.y, bomb.width, bomb.height)
   }
@@ -493,7 +498,6 @@ const Game = (function () {
   document.addEventListener('touchmove', gameDragHandler)
 
   document.addEventListener('keydown', (e) => {
-    console.log(e)
     if (e.keyCode === 32) {
       if (!gamePaused) {
         menuButtons.pause.activate()
@@ -544,6 +548,7 @@ const Game = (function () {
     sfx.music3.loop = true
     sfx.music3.volume = 0.25
     sfx.bombExplosion.volume = 0.5
+    sfx.bombBeep.volume = 0.5
   }
 
 
