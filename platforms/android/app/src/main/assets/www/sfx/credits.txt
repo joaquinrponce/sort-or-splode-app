@@ -1,0 +1,13 @@
+MUSIC: "Star Way" from PlayOnLoop.com
+Licensed under Creative Commons by Attribution 4.0
+
+"Chiptune Adventures 1", "Chitpune Adventures 2" by Juhani Junkala from OpenGameArt.org
+Licensed under Creative Commons 0
+
+SFX:
+
+zapsplat_cartoon_pop_mouth_007_44670
+zapsplat_cartoon_blink_flutter_shake_003_38437
+esm_8bit_explosion_medium_with_voice_bomb_boom_blast_cannon_retro_old_school_classic_cartoon
+
+from zapsplat.com

@@ -25,14 +25,26 @@ const Game = (function () {
   menuCanvas.width = 800
   menuCanvas.height = 500
 
-  const imageFileNames = ['img/blackBomb.png', 'img/redBomb.png', 'img/blowBomb.png', 'img/bombExplode.png', 'img/background.png']
+  const imageFileNames = ['img/blackBomb.png', 'img/redBomb.png', 'img/blowBomb.png', 'img/bombExplode.png', 'img/background.png', 'img/pauseButton.png', 'img/restartButton.png', 'img/continueButton.png', 'img/startButton.png']
 
   const images = {
     blackBomb: new Image(),
     redBomb: new Image(),
     blowBomb:new Image(),
     bombExplode: new Image(),
-    background: new Image()
+    background: new Image(),
+    pauseButton: new Image(),
+    restartButton: new Image(),
+    continueButton: new Image(),
+    startButton: new Image(),
+  }
+
+  const sfx = {
+    music1: new Audio('sfx/music1.wav'),
+    music2: new Audio('sfx/music2.ogg'),
+    music3: new Audio('sfx/music3.ogg'),
+    bombGrab : new Audio('sfx/bombGrab.mp3'),
+    bombExplosion: new Audio('sfx/bombExplosion.mp3')
   }
 
   mainCanvas.imageSmoothingEnabled = false
@@ -51,7 +63,7 @@ const Game = (function () {
         bag[randomIndex] = t
       })
     }
-    /* a simple shuffle bag implementation. returns the first value, removes it from the array, restores it to original state when empty, then shuffles it for randomness*/
+    /* a simple shuffle bag implementation. stores the first value, removes it from the array, restores array to original state when empty, shuffles it for randomness, then returns stored value*/
     function next () {
       const value = bag[0]
       bag.shift()
@@ -80,6 +92,7 @@ const Game = (function () {
   let currentRequest = null
   let gamePaused = false
   let gameStarted = false
+  let currentMusic = 1
 
   let secondsPassed = 0;
   let oldTimeStamp = 0;
@@ -110,6 +123,7 @@ const Game = (function () {
       canMove: true,
       elapsedSeconds: 0,
       blowUpSeconds: 10,
+      isBlownUp: false,
       width: width,
       height: width,
       secondsCount: 0,
@@ -117,30 +131,38 @@ const Game = (function () {
     }
   }
 
-  function menuButton (text, x, y, activate = function () { alert('Activated')}) {
+  function menuButton (text, x, y, width, height, image, activate = function () { alert('Activated')}) {
     return {
-      width: 150,
-      height: 80,
+      image: image,
       activate: activate,
       text: text,
       x: x,
-      y: y
+      y: y,
+      width: width,
+      height: height
     }
   }
 
   const menuButtons = {
-    start: menuButton('Start', 325, 170, () => {
+    start: menuButton('Start', 325, 170, 150, 50, images.startButton, () => {
+      sfx[`music${currentMusic}`].play()
       gameStarted = true
       gamePaused = false
     }),
-    continue: menuButton('Continue', 325, 170, () => {
+    continue: menuButton('Continue', 325, 170, 150, 50, images.continueButton, () => {
+      sfx[`music${currentMusic}`].play()
       gamePaused = false
     }),
-    restart: menuButton('Restart', 325, 300, () => {
+    restart: menuButton('Restart', 325, 300, 150, 50, images.restartButton, () => {
+      sfx[`music${currentMusic}`].pause()
+      currentMusic === 3 ? currentMusic = 1 : currentMusic += 1
+      sfx[`music${currentMusic}`].currentTime = 0
+      sfx[`music${currentMusic}`].play()
       resetGame()
       gamePaused = false
     }),
-    pause: menuButton('Pause', mainCanvas.width - 80, 0, () => {
+    pause: menuButton('Pause', mainCanvas.width - 50, 0, 50, 50, images.pauseButton, () => {
+      sfx[`music${currentMusic}`].pause()
       gamePaused = true
     })
   }
@@ -203,6 +225,11 @@ const Game = (function () {
 
 
   function updateBomb (bomb) {
+    if (bomb.isBlownUp) {
+      sfx.bombExplosion.play()
+      gameOver = true
+      sfx[`music${currentMusic}`].pause()
+    }
     if (!bomb.isDragging && bomb.canMove) {
       if (willHitHorizontalWalls(bomb)) {
         bomb.offsetX = -bomb.offsetX
@@ -216,7 +243,12 @@ const Game = (function () {
       bomb.x += Math.round((bomb.offsetX * bomb.speed * secondsPassed))
       bomb.y += Math.round((bomb.offsetY * bomb.speed * secondsPassed))
     }
-    if (bomb.canMove) bomb.elapsedSeconds += secondsPassed
+    if (bomb.canMove) {
+      bomb.elapsedSeconds += secondsPassed
+      if (bomb.elapsedSeconds >= bomb.blowUpSeconds) {
+        bomb.isBlownUp = true
+      }
+    }
     if (bomb.secondsCount >= .5)  bomb.secondsCount = 0
     bomb.secondsCount += secondsPassed
   }
@@ -259,24 +291,15 @@ const Game = (function () {
     if (gamePaused || gameOver) {
       for (button in menuButtons) {
         if ((gameOver || gameStarted) && button === 'start') continue
+        if (!gameStarted && button === 'restart') continue
         if ((!gameStarted || gameOver) && button === 'continue') continue
         if (button === 'pause') continue
         button = menuButtons[button]
-        menuCtx.fillStyle = 'black'
-        menuCtx.fillRect(button.x, button.y, button.width, button.height)
-        menuCtx.fillStyle = 'white'
-        const size = menuCanvas.width * 0.04
-        menuCtx.font = `${size}px serif`
-        menuCtx.fillText(button.text, button.x, button.y + size)
+        menuCtx.drawImage(button.image, button.x, button.y)
       }
     } else {
       const button = menuButtons.pause
-      menuCtx.fillStyle = 'black'
-      menuCtx.fillRect(button.x, button.y, button.width, button.height)
-      menuCtx.fillStyle = 'white'
-      const size = menuCanvas.width * 0.04
-      menuCtx.font = `${size}px serif`
-      menuCtx.fillText(button.text, button.x, button.y + size)
+      menuCtx.drawImage(button.image, button.x, button.y)
     }
     requestAnimationFrame(drawMenu)
   }
@@ -290,9 +313,8 @@ const Game = (function () {
   function drawBomb(bomb) {
     let bombSprite = bomb.color === 'red' ? images.redBomb : images.blackBomb
     let column = bomb.secondsCount < .25 ?  0 :  40
-    if (bomb.elapsedSeconds >= bomb.blowUpSeconds) {
+    if (bomb.isBlownUp) {
       ctx.drawImage(images.bombExplode, bomb.x, bomb.y)
-      gameOver = true
       return
     }
     if ((bomb.blowUpSeconds - bomb.elapsedSeconds) < 3 && Math.round(bomb.secondsCount * 10) % 2 === 0 && bomb.canMove) {
@@ -360,14 +382,14 @@ const Game = (function () {
         draggedBomb.canMove = false
         redCapturedBombs += 1
       } else {
-        draggedBomb.elapsedSeconds = draggedBomb.blowUpSeconds
+        draggedBomb.isBlownUp = true
       }
     } else if (isTopLeftInBlack && isBottomRightInBlack && draggedBomb.width == 80) {
       if (draggedBomb.color === 'black') {
         draggedBomb.canMove = false
         blackCapturedBombs += 1
       } else {
-        draggedBomb.elapsedSeconds = draggedBomb.blowUpSeconds
+        draggedBomb.isBlownUp = true
       }
     } else {
       draggedBomb.x = draggedBomb.savedX
@@ -406,6 +428,8 @@ const Game = (function () {
     } else {
       if (isWithinBounds(redBoundsX, redBoundsY, canvasX, canvasY) || isWithinBounds(blackBoundsX, blackBoundsY, canvasX, canvasY)) return
       if (checkIfBombAtPointerLocation(canvasX, canvasY)) {
+        sfx.bombGrab.currentTime = 0
+        sfx.bombGrab.play()
         draggedBomb.savedX = draggedBomb.x
         draggedBomb.savedY = draggedBomb.y
         canDrag = true
@@ -468,6 +492,18 @@ const Game = (function () {
   document.addEventListener('touchend', gameUnclickHandler)
   document.addEventListener('touchmove', gameDragHandler)
 
+  document.addEventListener('keydown', (e) => {
+    console.log(e)
+    if (e.keyCode === 32) {
+      if (!gamePaused) {
+        menuButtons.pause.activate()
+      } else {
+        menuButtons.continue.activate()
+      }
+
+    }
+  })
+
 
   function resize () {
       backgroundCanvas.style.width = `${window.innerWidth}px`
@@ -500,18 +536,29 @@ const Game = (function () {
     drawGame()
   }
 
-  /* load images first, then run the game */
+  function setSFXProperties () {
+    sfx.music1.loop = true
+    sfx.music1.volume = 0.25
+    sfx.music2.loop = true
+    sfx.music2.volume = 0.25
+    sfx.music3.loop = true
+    sfx.music3.volume = 0.25
+    sfx.bombExplosion.volume = 0.5
+  }
+
+
   function load() {
     let imagesToLoad = 0
     let imagesLoaded = 0
     let ready = false
     function checkIfReady() {
-      if (imagesLoaded === 5) return true
+      if (imagesLoaded === imageFileNames.length) return true
     }
     for (image in images) {
       images[image].onload = function() {
       imagesLoaded++
       if (checkIfReady()) {
+          setSFXProperties()
           start()
         }
       }
