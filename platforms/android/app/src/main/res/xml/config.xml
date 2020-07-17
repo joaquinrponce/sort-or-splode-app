@@ -7,13 +7,14 @@
     <feature name="CDVOrientation">
         <param name="android-package" value="cordova.plugins.screenorientation.CDVOrientation" />
     </feature>
-    <name>HelloCordova</name>
+    <name>Sort or 'Splode</name>
     <description>
-        A sample Apache Cordova application that responds to the deviceready event.
+        A tribute to the 'Sort or 'Splode' minigame in the SM64DS and New Super Mario Bros. games
     </description>
-    <author email="dev@cordova.apache.org" href="http://cordova.io">
-        Apache Cordova Team
+    <author email="jacl179692@gmail.com" href="https://github.com/Kokozord">
+        Kokozord
     </author>
+    <icon src="www/img/icon.png" />
     <content src="index.html" />
     <access origin="*" />
     <allow-intent href="http://*/*" />
